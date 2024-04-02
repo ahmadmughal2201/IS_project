@@ -1,31 +1,37 @@
+// import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Microphone Permission Checker',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: PermissionCheckPage(),
+      home: const PermissionCheckPage(),
     );
   }
 }
 
 class PermissionCheckPage extends StatefulWidget {
+  const PermissionCheckPage({Key? key}) : super(key: key);
+
   @override
   _PermissionCheckPageState createState() => _PermissionCheckPageState();
 }
 
 class _PermissionCheckPageState extends State<PermissionCheckPage> {
-  List<ApplicationWithPermission> appsWithMicPermission = [];
+  List<ApplicationWithIcon> appsWithMicPermission = [];
 
   @override
   void initState() {
@@ -54,18 +60,16 @@ class _PermissionCheckPageState extends State<PermissionCheckPage> {
   }
 
   Future<void> _getAppsUsingMicrophone() async {
-    List<ApplicationWithPermission> apps = [];
+    List<ApplicationWithIcon> apps = [];
     List<Application> allApps = await DeviceApps.getInstalledApplications(
-      onlyAppsWithLaunchIntent: true,
-      includeAppIcons: true,
+      includeSystemApps: true, // Include system apps
+      includeAppIcons: true, // Include app icons
+      onlyAppsWithLaunchIntent: true, // Only list applications with launch intents
     );
     for (Application app in allApps) {
       // Check if the app has microphone permission
       if (await _hasMicrophonePermission(app.packageName)) {
-        apps.add(ApplicationWithPermission(
-          appName: app.appName,
-          packageName: app.packageName,
-        ));
+        apps.add(app as ApplicationWithIcon);
       }
     }
     setState(() {
@@ -83,19 +87,27 @@ class _PermissionCheckPageState extends State<PermissionCheckPage> {
     // Refresh the list of apps with microphone permission
     _getAppsUsingMicrophone();
   }
+  void _openAppSettings(ApplicationWithIcon app) async {
+    await DeviceApps.openAppSettings(app.packageName);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Microphone Permission Checker'),
+        title: const Text('Microphone Permission Checker'),
       ),
       body: ListView.builder(
         itemCount: appsWithMicPermission.length,
         itemBuilder: (context, index) {
+          final app = appsWithMicPermission[index];
           return ListTile(
+            leading: CircleAvatar(
+              backgroundImage: MemoryImage(appsWithMicPermission[index].icon),
+            ),
             title: Text(appsWithMicPermission[index].appName),
             subtitle: Text(appsWithMicPermission[index].packageName),
+             onTap: () => _openAppSettings(app),
           );
         },
       ),
@@ -103,26 +115,14 @@ class _PermissionCheckPageState extends State<PermissionCheckPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          FloatingActionButton(
-            onPressed: _checkMicrophonePermission,
-            tooltip: 'Scan for Apps with Microphone Permission',
-            child: Icon(Icons.search),
-          ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           FloatingActionButton(
             onPressed: _refreshList,
             tooltip: 'Refresh List',
-            child: Icon(Icons.refresh),
+            child: const Icon(Icons.refresh),
           ),
         ],
       ),
     );
   }
-}
-
-class ApplicationWithPermission {
-  final String appName;
-  final String packageName;
-
-  ApplicationWithPermission({required this.appName, required this.packageName});
 }
